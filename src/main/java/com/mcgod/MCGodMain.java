@@ -45,7 +45,7 @@ public class MCGodMain extends JavaPlugin {
             isHolySiteValid = false;
         }
 
-        actionInterval = config.getInt("action-interval", 6000); // Default to 5 minutes if not set
+        actionInterval = config.getInt("action-interval", 3600); // Default to 3 minutes (3600 ticks, 20 per second) if not set
         apiKey = config.getString("openai.apiKey");
         if (apiKey == null || apiKey.isEmpty()) {
             getLogger().severe("OpenAI API key not found in config.yml!");
