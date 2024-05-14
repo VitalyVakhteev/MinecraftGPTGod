@@ -13,8 +13,10 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 
 public class MCGodMain extends JavaPlugin {
     private Location holySiteLocation;
@@ -25,6 +27,7 @@ public class MCGodMain extends JavaPlugin {
     private int intervalTaskId;
     private boolean isHolySiteValid;
     private String apiKey;
+    private Set<Player> playersSacrificed; // Track players who have sacrificed in the current cycle
 
     @Override
     public void onEnable() {
@@ -53,9 +56,13 @@ public class MCGodMain extends JavaPlugin {
 
         playerWishes = new HashMap<>();
         random = new Random();
+        playersSacrificed = new HashSet<>();
 
         // Schedule the action interval task
-        intervalTaskId = Bukkit.getScheduler().scheduleSyncRepeatingTask(this, this::performRandomAction, actionInterval, actionInterval);
+        intervalTaskId = Bukkit.getScheduler().scheduleSyncRepeatingTask(this, () -> {
+            performRandomAction();
+            playersSacrificed.clear(); // Reset the sacrifice tracker for the new cycle
+        }, actionInterval, actionInterval);
 
         getLogger().info("MCGod plugin successfully enabled!");
     }
@@ -85,10 +92,15 @@ public class MCGodMain extends JavaPlugin {
                     player.sendMessage("Sacrifices are currently disabled due to an invalid holy site configuration.");
                     return true;
                 }
+                if (playersSacrificed.contains(player)) {
+                    player.sendMessage("You have already performed a sacrifice in this cycle.");
+                    return true;
+                }
                 if (player.getLocation().distance(holySiteLocation) < 5) {
                     if (player.getInventory().getItemInMainHand().getType() != Material.AIR) {
                         player.getInventory().setItemInMainHand(null); // Remove the item
                         baseChance += (Math.random() * 0.5);
+                        playersSacrificed.add(player); // Mark the player as having sacrificed
                         player.sendMessage("Your sacrifice has been accepted. Your chance of having prayers answered has increased.");
                     } else {
                         player.sendMessage("You must hold an item in your hand to sacrifice.");
@@ -117,8 +129,10 @@ public class MCGodMain extends JavaPlugin {
                         public void run() {
                             String modification = generateCommandForWish(wish);
                             if (modification != null) {
-                                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), modification);
-                                player.sendMessage("ChatGPT has granted your wish: " + modification);
+                                Bukkit.getScheduler().runTask(MCGodMain.this, () -> {
+                                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), modification);
+                                    player.sendMessage("ChatGPT has granted your wish: " + modification);
+                                });
                             } else {
                                 modification = getRandomModification();
                                 executeWorldModification(modification);
@@ -180,44 +194,7 @@ public class MCGodMain extends JavaPlugin {
                     }
                 }
             }
-        } else {
-            // Set fire to the nearest village from a random player
-            Player player = getRandomPlayer();
-            if (player != null) {
-                new BukkitRunnable() {
-                    @Override
-                    public void run() {
-                        String locateCommand = "execute in " + player.getWorld().getName() + " run locate structure minecraft:village";
-                        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), locateCommand);
-                        Location villageLocation = parseLocateResult();
-                        if (villageLocation != null) {
-                            setVillageOnFire(villageLocation);
-                        }
-                    }
-                }.runTaskAsynchronously(this);
-            }
         }
-    }
-
-    private void setVillageOnFire(Location villageLocation) {
-        int radius = 30;
-        for (int x = -radius; x <= radius; x++) {
-            for (int y = -radius; y <= radius; y++) {
-                for (int z = -radius; z <= radius; z++) {
-                    Location blockLoc = villageLocation.clone().add(x, y, z);
-                    if (blockLoc.getBlock().getType() == Material.OAK_PLANKS) {
-                        blockLoc.getBlock().setType(Material.FIRE);
-                    }
-                }
-            }
-        }
-    }
-
-    private Location parseLocateResult() {
-        // This method should parse the result of the locate command and return the village location
-        // For demonstration purposes, we'll return a fixed location
-        // Replace this with actual parsing logic
-        return new Location(Bukkit.getWorlds().get(0), 100, 64, 100);
     }
 
     private void buildCabin() {
