@@ -127,12 +127,20 @@ public class MCGodMain extends JavaPlugin {
                     new BukkitRunnable() {
                         @Override
                         public void run() {
-                            String modification = generateCommandForWish(wish);
-                            final String finalModification = modification != null ? modification : getRandomModification();
-                            Bukkit.getScheduler().runTask(MCGodMain.this, () -> {
-                                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), finalModification);
-                                player.sendMessage("ChatGPT has granted your wish: " + finalModification);
-                            });
+                            String response = generateCommandForWish(wish);
+                            String command = extractCommand(response);
+                            if (command != null) {
+                                command = command.replace("@p", player.getName()); // Replace @p with the player's name
+                                final String finalCommand = command;
+                                Bukkit.getScheduler().runTask(MCGodMain.this, () -> {
+                                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), finalCommand);
+                                    player.sendMessage("ChatGPT has granted your wish: " + finalCommand);
+                                });
+                            } else {
+                                String modification = getRandomModification();
+                                executeWorldModification(modification);
+                                player.sendMessage("ChatGPT has granted a wish: " + modification);
+                            }
                         }
                     }.runTaskAsynchronously(MCGodMain.this);
                 } else {
@@ -272,12 +280,19 @@ public class MCGodMain extends JavaPlugin {
             // Call OpenAI API to generate the command
             OpenAIClient openAIClient = new OpenAIClient(apiKey);
             Player[] players = getPlayers();
-            String response = openAIClient.generateCommand(wish, players);
-            return response != null ? response : defaultCommand();
+            return openAIClient.generateCommand(wish, players);
         } catch (Exception e) {
             getLogger().severe("Error generating command from OpenAI: " + e.getMessage());
             return null;
         }
+    }
+
+    private String extractCommand(String response) {
+        if (response != null) {
+            OpenAIClient openAIClient = new OpenAIClient(apiKey);
+            return openAIClient.extractCommand(response);
+        }
+        return null;
     }
 
     private String defaultCommand() {

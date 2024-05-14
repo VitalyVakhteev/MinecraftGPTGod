@@ -63,4 +63,12 @@ public class OpenAIClient {
         }
         return null;
     }
+
+    public String extractCommand(String response) {
+        String[] parts = response.split("```");
+        if (parts.length >= 2) {
+            return parts[1].trim(); // The command should be between the ```
+        }
+        return null;
+    }
 }
