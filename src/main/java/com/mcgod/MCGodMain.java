@@ -121,23 +121,18 @@ public class MCGodMain extends JavaPlugin {
         } else {
             // Process wishes
             for (Map.Entry<Player, String> entry : playerWishes.entrySet()) {
-                Player player = entry.getKey();
-                String wish = entry.getValue();
+                final Player player = entry.getKey();
+                final String wish = entry.getValue();
                 if (random.nextDouble() < baseChance) {
                     new BukkitRunnable() {
                         @Override
                         public void run() {
                             String modification = generateCommandForWish(wish);
-                            if (modification != null) {
-                                Bukkit.getScheduler().runTask(MCGodMain.this, () -> {
-                                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), modification);
-                                    player.sendMessage("ChatGPT has granted your wish: " + modification);
-                                });
-                            } else {
-                                modification = getRandomModification();
-                                executeWorldModification(modification);
-                                player.sendMessage("ChatGPT has granted a wish: " + modification);
-                            }
+                            final String finalModification = modification != null ? modification : getRandomModification();
+                            Bukkit.getScheduler().runTask(MCGodMain.this, () -> {
+                                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), finalModification);
+                                player.sendMessage("ChatGPT has granted your wish: " + finalModification);
+                            });
                         }
                     }.runTaskAsynchronously(MCGodMain.this);
                 } else {
