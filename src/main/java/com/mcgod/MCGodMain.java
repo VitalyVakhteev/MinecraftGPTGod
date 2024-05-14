@@ -130,7 +130,7 @@ public class MCGodMain extends JavaPlugin {
                             String response = generateCommandForWish(wish);
                             String command = extractCommand(response);
                             if (command != null) {
-                                command = command.replace("@p", player.getName()); // Replace @p with the player's name
+                                command = sanitizeCommand(command.replace("@p", player.getName())); // Replace @p with the player's name and sanitize
                                 final String finalCommand = command;
                                 Bukkit.getScheduler().runTask(MCGodMain.this, () -> {
                                     Bukkit.dispatchCommand(Bukkit.getConsoleSender(), finalCommand);
@@ -293,6 +293,12 @@ public class MCGodMain extends JavaPlugin {
             return openAIClient.extractCommand(response);
         }
         return null;
+    }
+
+    private String sanitizeCommand(String command) {
+        // Remove any unwanted prefixes like "bash" or other text
+        command = command.replaceAll("^(bash\\s+)?", ""); // Example to remove "bash " if it appears at the start
+        return command;
     }
 
     private String defaultCommand() {
