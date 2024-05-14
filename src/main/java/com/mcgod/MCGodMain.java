@@ -297,7 +297,7 @@ public class MCGodMain extends JavaPlugin {
 
     private String sanitizeCommand(String command) {
         // Remove any unwanted prefixes like "bash" or other text
-        command = command.replaceAll("^(bash\\s+)?", ""); // Example to remove "bash " if it appears at the start
+        command = command.replaceAll("^(bash\\s+|/\\s*)?", ""); // Remove "bash " or leading slash if it appears at the start
         return command;
     }
 
