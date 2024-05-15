@@ -1,12 +1,13 @@
 package com.mcgod;
 
+import static com.mcgod.DefaultEvents.*;
+
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -23,7 +24,8 @@ public class MCGodMain extends JavaPlugin {
     private int actionInterval;
     private Map<Player, String> playerWishes;
     private Random random;
-    private double baseChance = 0.2; // Base chance of wishes
+    private double baseChance = 0.4; // Base chance of wishes
+    private Map<Player, Double> playerChances; // Map to track individual player chances
     private int intervalTaskId;
     private boolean isHolySiteValid;
     private String apiKey;
@@ -56,12 +58,14 @@ public class MCGodMain extends JavaPlugin {
 
         playerWishes = new HashMap<>();
         random = new Random();
+        playerChances = new HashMap<>();
         playersSacrificed = new HashSet<>();
 
         // Schedule the action interval task
         intervalTaskId = Bukkit.getScheduler().scheduleSyncRepeatingTask(this, () -> {
             performRandomAction();
             playersSacrificed.clear(); // Reset the sacrifice tracker for the new cycle
+            baseChance = 0.4; // Reset the base chance
         }, actionInterval, actionInterval);
 
         getLogger().info("MCGod plugin successfully enabled!");
@@ -99,7 +103,8 @@ public class MCGodMain extends JavaPlugin {
                 if (player.getLocation().distance(holySiteLocation) < 5) {
                     if (player.getInventory().getItemInMainHand().getType() != Material.AIR) {
                         player.getInventory().setItemInMainHand(null); // Remove the item
-                        baseChance += (Math.random() * 0.5);
+                        double newChance = baseChance + (Math.random() * 0.5);
+                        playerChances.put(player, newChance); // Update individual player chance
                         playersSacrificed.add(player); // Mark the player as having sacrificed
                         player.sendMessage("Your sacrifice has been accepted. Your chance of having prayers answered has increased.");
                     } else {
@@ -116,14 +121,33 @@ public class MCGodMain extends JavaPlugin {
 
     private void performRandomAction() {
         if (playerWishes.isEmpty()) {
-            // No wishes, pick a random action
-            executeWorldModification(getRandomModification());
+            // No wishes, generate a random command using ChatGPT
+            new BukkitRunnable() {
+                @Override
+                public void run() {
+                    String randomWish = "Perform a random command in Minecraft";
+                    String response = generateCommandForWish(randomWish);
+                    String command = extractCommand(response);
+                    if (command != null) {
+                        final String finalCommand = sanitizeCommand(command);
+                        Bukkit.getScheduler().runTask(MCGodMain.this, () -> {
+                            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), finalCommand);
+                            Bukkit.broadcastMessage("ChatGPT is performing a random action: " + finalCommand);
+                        });
+                    } else {
+                        String modification = getRandomModification();
+                        executeWorldModification(modification);
+                        Bukkit.broadcastMessage("ChatGPT is performing a random action: " + modification);
+                    }
+                }
+            }.runTaskAsynchronously(MCGodMain.this);
         } else {
             // Process wishes
             for (Map.Entry<Player, String> entry : playerWishes.entrySet()) {
                 final Player player = entry.getKey();
                 final String wish = entry.getValue();
-                if (random.nextDouble() < baseChance) {
+                double playerChance = playerChances.getOrDefault(player, baseChance);
+                if (random.nextDouble() < playerChance) {
                     new BukkitRunnable() {
                         @Override
                         public void run() {
@@ -183,89 +207,6 @@ public class MCGodMain extends JavaPlugin {
         Bukkit.broadcastMessage("ChatGPT is performing an action: " + modification);
     }
 
-    private void setFire() {
-        if (random.nextBoolean()) {
-            // Set a radius of 3 blocks around a random player on fire
-            Player player = getRandomPlayer();
-            if (player != null) {
-                Location loc = player.getLocation();
-                int radius = 3;
-                for (int x = -radius; x <= radius; x++) {
-                    for (int z = -radius; z <= radius; z++) {
-                        Location fireLoc = loc.clone().add(x, 0, z);
-                        fireLoc.getBlock().setType(Material.FIRE);
-                    }
-                }
-            }
-        }
-    }
-
-    private void buildCabin() {
-        Player player = getRandomPlayer();
-        if (player != null) {
-            Location loc = player.getLocation();
-            int width = 5, height = 5, depth = 5;
-            loc = loc.add(random.nextInt(20) - 10, 0, random.nextInt(20) - 10); // Random location around player
-            for (int x = 0; x < width; x++) {
-                for (int y = 0; y < height; y++) {
-                    for (int z = 0; z < depth; z++) {
-                        Location blockLoc = loc.clone().add(x, y, z);
-                        if (y == 0 || y == height - 1 || x == 0 || x == width - 1 || z == 0 || z == depth - 1) {
-                            blockLoc.getBlock().setType(Material.OAK_WOOD);
-                        } else {
-                            blockLoc.getBlock().setType(Material.AIR);
-                        }
-                    }
-                }
-            }
-            Location doorLoc = loc.clone().add(1, 1, 0);
-            doorLoc.getBlock().setType(Material.OAK_DOOR);
-        }
-    }
-
-    private void spawnAnimals() {
-        Player player = getRandomPlayer();
-        if (player != null) {
-            EntityType[] animals = {EntityType.PIG, EntityType.CHICKEN, EntityType.COW, EntityType.SHEEP, EntityType.WOLF, EntityType.CAT};
-            EntityType animal = animals[random.nextInt(animals.length)];
-            for (int i = 0; i < 5; i++) {
-                player.getWorld().spawnEntity(player.getLocation(), animal);
-            }
-        }
-    }
-
-    private void giveItem() {
-        Player player = getRandomPlayer();
-        if (player != null) {
-            Material[] items = {Material.IRON_SWORD, Material.DIAMOND_SWORD, Material.IRON_PICKAXE, Material.DIAMOND_PICKAXE, Material.IRON_HELMET, Material.DIAMOND_HELMET, Material.GOLD_INGOT, Material.IRON_INGOT, Material.BRICK};
-            Material item = items[random.nextInt(items.length)];
-            player.getInventory().addItem(new org.bukkit.inventory.ItemStack(item, 1));
-        }
-    }
-
-    private void smitePlayer() {
-        Player player = getRandomPlayer();
-        if (player != null) {
-            player.getWorld().strikeLightning(player.getLocation());
-        }
-    }
-
-    private void teleportPlayer() {
-        Player player1 = getRandomPlayer();
-        Player player2 = getRandomPlayer();
-        if (player1 != null && player2 != null && !player1.equals(player2)) {
-            player1.teleport(player2.getLocation());
-        }
-    }
-
-    private Player getRandomPlayer() {
-        Player[] players = Bukkit.getOnlinePlayers().toArray(new Player[0]);
-        if (players.length > 0) {
-            return players[random.nextInt(players.length)];
-        }
-        return null;
-    }
-
     private Player[] getPlayers() {
         return Bukkit.getOnlinePlayers().toArray(new Player[0]);
     }
@@ -296,13 +237,7 @@ public class MCGodMain extends JavaPlugin {
     }
 
     private String sanitizeCommand(String command) {
-        // Remove any unwanted prefixes like "bash" or other text
-        command = command.replaceAll("^(bash\\s+|/\\s*)?", ""); // Remove "bash " or leading slash if it appears at the start
+        command = command.replaceAll("^(bash\\s+|\\/)+", ""); // Remove "bash " or any leading slashes
         return command;
-    }
-
-    private String defaultCommand() {
-        executeWorldModification(getRandomModification());
-        return null;
     }
 }
