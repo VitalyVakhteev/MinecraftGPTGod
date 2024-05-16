@@ -5,6 +5,8 @@ import static com.mcgod.DefaultEvents.*;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.World;
+import org.bukkit.block.Block;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -20,16 +22,15 @@ import java.util.Random;
 import java.util.Set;
 
 public class MCGodMain extends JavaPlugin {
-    private Location holySiteLocation;
-    private int actionInterval;
     private Map<Player, String> playerWishes;
-    private Random random;
-    private double baseChance = 0.4; // Base chance of wishes
-    private Map<Player, Double> playerChances; // Map to track individual player chances
-    private int intervalTaskId;
-    private boolean isHolySiteValid;
-    private String apiKey;
+    private Map<Player, Double> playerChances;
     private Set<Player> playersSacrificed; // Track players who have sacrificed in the current cycle
+    private Location holySiteLocation;
+    private Random random;
+    private String apiKey;
+    private int intervalTaskId;
+    private double baseChance = 0.25; // Base chance of wishes
+    private boolean isHolySiteValid;
 
     @Override
     public void onEnable() {
@@ -39,18 +40,32 @@ public class MCGodMain extends JavaPlugin {
 
         String worldName = config.getString("holy-site.world");
         double x = config.getDouble("holy-site.x", 0);
-        double y = config.getDouble("holy-site.y", 0);
         double z = config.getDouble("holy-site.z", 0);
 
         if (worldName != null && Bukkit.getWorld(worldName) != null) {
-            holySiteLocation = new Location(Bukkit.getWorld(worldName), x, y, z);
-            isHolySiteValid = true;
+            World world = Bukkit.getWorld(worldName);
+            if (world != null) {
+                int highestY = world.getHighestBlockYAt((int) x, (int) z);
+                Block block = world.getBlockAt((int) x, highestY, (int) z);
+                if (isValidLocation(block)) {
+                    Location obeliskLocation = block.getLocation();
+                    generateObelisk(obeliskLocation);
+                    holySiteLocation = obeliskLocation;
+                    isHolySiteValid = true;
+                } else {
+                    getLogger().severe("Invalid obelisk location! Sacrifice command will be disabled.");
+                    isHolySiteValid = false;
+                }
+            } else {
+                getLogger().severe("Invalid world configuration! Sacrifice command will be disabled.");
+                isHolySiteValid = false;
+            }
         } else {
             getLogger().severe("Invalid holy site configuration! Sacrifice command will be disabled.");
             isHolySiteValid = false;
         }
 
-        actionInterval = config.getInt("action-interval", 3600); // Default to 3 minutes (3600 ticks, 20 per second) if not set
+        int actionInterval = config.getInt("action-interval", 3600); // Default to 3 minutes (3600 ticks, 20 per second) if not set
         apiKey = config.getString("openai.apiKey");
         if (apiKey == null || apiKey.isEmpty()) {
             getLogger().severe("OpenAI API key not found in config.yml!");
@@ -65,7 +80,7 @@ public class MCGodMain extends JavaPlugin {
         intervalTaskId = Bukkit.getScheduler().scheduleSyncRepeatingTask(this, () -> {
             performRandomAction();
             playersSacrificed.clear(); // Reset the sacrifice tracker for the new cycle
-            baseChance = 0.4; // Reset the base chance
+            baseChance = 0.25; // Reset the base chance
         }, actionInterval, actionInterval);
 
         getLogger().info("MCGod plugin successfully enabled!");
@@ -100,7 +115,7 @@ public class MCGodMain extends JavaPlugin {
                     player.sendMessage("You have already performed a sacrifice in this cycle.");
                     return true;
                 }
-                if (player.getLocation().distance(holySiteLocation) < 5) {
+                if (player.getLocation().distance(holySiteLocation) < 10) {
                     if (player.getInventory().getItemInMainHand().getType() != Material.AIR) {
                         player.getInventory().setItemInMainHand(null); // Remove the item
                         double newChance = baseChance + (Math.random() * 0.5);
@@ -114,9 +129,118 @@ public class MCGodMain extends JavaPlugin {
                     player.sendMessage("You must be at the holy site to sacrifice.");
                 }
                 return true;
+            } else if (command.getName().equalsIgnoreCase("advice")) {
+                if (args.length > 0) {
+                    String message = String.join(" ", args);
+                    new BukkitRunnable() {
+                        @Override
+                        public void run() {
+                            String response = getAdviceFromChatGPT(message);
+                            if (response != null) {
+                                player.sendMessage("ChatGPT's advice: " + response);
+                            } else {
+                                player.sendMessage("Failed to get advice from ChatGPT.");
+                            }
+                        }
+                    }.runTaskAsynchronously(this);
+                } else {
+                    player.sendMessage("You must specify your message.");
+                }
+                return true;
+            } else if (command.getName().equalsIgnoreCase("spy")) {
+                if (args.length == 1) {
+                    String targetPlayerName = args[0];
+                    Player targetPlayer = Bukkit.getPlayer(targetPlayerName);
+                    if (targetPlayer != null) {
+                        double spyChance = 0.5;
+                        if (random.nextDouble() < spyChance) {
+                            new BukkitRunnable() {
+                                @Override
+                                public void run() {
+                                    String info = getSpyInfoFromChatGPT(player, targetPlayer);
+                                    if (info != null) {
+                                        player.sendMessage("ChatGPT's info about " + targetPlayerName + ": " + info);
+                                    } else {
+                                        player.sendMessage("Failed to get info about " + targetPlayerName + " from ChatGPT.");
+                                    }
+                                }
+                            }.runTaskAsynchronously(this);
+                        } else {
+                            player.sendMessage("ChatGPT refuses to find any interesting information about " + targetPlayerName + ".");
+                        }
+                    } else {
+                        player.sendMessage("Player " + targetPlayerName + " not found.");
+                    }
+                } else {
+                    player.sendMessage("You must specify the player to spy on.");
+                }
+                return true;
             }
         }
         return false;
+    }
+
+    private boolean isValidLocation(Block block) {
+        World world = block.getWorld();
+        Location location = block.getLocation();
+        for (int i = 1; i <= 5; i++) {
+            Block belowBlock = world.getBlockAt(location.subtract(0, i, 0));
+            if (belowBlock.getType() == Material.AIR) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private String getRandomModification() {
+        // Basic actions if ChatGPT is inaccessible
+        String[] modifications = {"set_fire", "build_cabin", "spawn_animals", "give_item", "smite_player", "teleport_player"};
+        return modifications[random.nextInt(modifications.length)];
+    }
+
+    private Player[] getPlayers() {
+        return Bukkit.getOnlinePlayers().toArray(new Player[0]);
+    }
+
+    private String getAdviceFromChatGPT(String message) {
+        if (apiKey == null || apiKey.isEmpty()) {
+            getLogger().severe("OpenAI API key not found in config.yml!");
+            return null;
+        }
+
+        try {
+            OpenAIClient openAIClient = new OpenAIClient(apiKey);
+            return openAIClient.getAdvice(message);
+        } catch (Exception e) {
+            getLogger().severe("Error getting advice from OpenAI: " + e.getMessage());
+            return null;
+        }
+    }
+
+    private String getSpyInfoFromChatGPT(Player player, Player targetPlayer) {
+        if (apiKey == null || apiKey.isEmpty()) {
+            getLogger().severe("OpenAI API key not found in config.yml!");
+            return null;
+        }
+
+        try {
+            OpenAIClient openAIClient = new OpenAIClient(apiKey);
+            return openAIClient.getSpyInfo(player, targetPlayer);
+        } catch (Exception e) {
+            getLogger().severe("Error getting spy info from OpenAI: " + e.getMessage());
+            return null;
+        }
+    }
+
+
+    private void generateObelisk(Location location) {
+        World world = location.getWorld();
+        if (world != null) {
+            Block baseBlock = world.getBlockAt(location);
+            Block topBlock = world.getBlockAt(location.add(0, 1, 0));
+            baseBlock.setType(Material.BEDROCK);
+            topBlock.setType(Material.BEDROCK);
+        }
     }
 
     private void performRandomAction() {
@@ -125,7 +249,7 @@ public class MCGodMain extends JavaPlugin {
             new BukkitRunnable() {
                 @Override
                 public void run() {
-                    String randomWish = "Perform a random command in Minecraft";
+                    String randomWish = "Please generate a random command to run in my world in Minecraft. Be creative.";
                     String response = generateCommandForWish(randomWish);
                     String command = extractCommand(response);
                     if (command != null) {
@@ -175,12 +299,6 @@ public class MCGodMain extends JavaPlugin {
         }
     }
 
-    private String getRandomModification() {
-        // Basic actions if ChatGPT is inaccessible
-        String[] modifications = {"set_fire", "build_cabin", "spawn_animals", "give_item", "smite_player", "teleport_player"};
-        return modifications[random.nextInt(modifications.length)];
-    }
-
     private void executeWorldModification(String modification) {
         switch (modification) {
             case "set_fire":
@@ -205,10 +323,6 @@ public class MCGodMain extends JavaPlugin {
                 break;
         }
         Bukkit.broadcastMessage("ChatGPT is performing an action: " + modification);
-    }
-
-    private Player[] getPlayers() {
-        return Bukkit.getOnlinePlayers().toArray(new Player[0]);
     }
 
     private String generateCommandForWish(String wish) {
@@ -237,7 +351,8 @@ public class MCGodMain extends JavaPlugin {
     }
 
     private String sanitizeCommand(String command) {
-        command = command.replaceAll("^(bash\\s+|\\/)+", ""); // Remove "bash " or any leading slashes
+        command = command.replaceAll("^(bash\\s+|/|java\\s+)+", ""); // Remove "bash ", "java ", or any leading slashes
         return command;
     }
+
 }

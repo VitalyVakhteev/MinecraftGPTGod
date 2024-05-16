@@ -2,8 +2,7 @@
 holy-site:
   world: "world"
   x: 0.0
-  y: 64.0
   z: 0.0
-action-interval: 6000
+action-interval: 600
 openai:
   apiKey: "your_openai_api_key_here"

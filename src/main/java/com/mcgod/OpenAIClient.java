@@ -27,7 +27,7 @@ public class OpenAIClient {
 
         JsonObject systemMessage = new JsonObject();
         systemMessage.addProperty("role", "system");
-        systemMessage.addProperty("content", "You are a Minecraft plugin that generates commands based on players' wishes.");
+        systemMessage.addProperty("content", "You are a Minecraft plugin that generates commands based on players' wishes. Make sure the commands are valid and executable in Minecraft.");
         messages.add(systemMessage);
 
         JsonObject userMessage = new JsonObject();
@@ -37,11 +37,38 @@ public class OpenAIClient {
         }
 
         userMessage.addProperty("role", "user");
-        userMessage.addProperty("content", "Generate a Minecraft command to fulfill the wish: \"" + wish + "\". Players: " + playersNameAndLoc);
+        userMessage.addProperty("content", "Generate a valid and executable Minecraft command to fulfill the wish: \"" + wish + "\". Players: " + playersNameAndLoc);
         messages.add(userMessage);
 
         json.add("messages", messages);
 
+        return getString(client, json);
+    }
+
+    public String extractCommand(String response) {
+        String[] parts = response.split("```");
+        if (parts.length >= 2) {
+            return parts[1].trim(); // The command should be between the ```
+        }
+        return null;
+    }
+
+    public String getAdvice(String message) throws IOException {
+        OkHttpClient client = new OkHttpClient();
+
+        JsonObject json = getJsonObject("You are a helpful assistant.", message);
+
+        return getString(client, json);
+    }
+
+    public String getSpyInfo(Player player, Player targetPlayer) throws IOException {
+        OkHttpClient client = new OkHttpClient();
+        JsonObject json = getJsonObject("You are a helpful assistant that provides information about players in a Minecraft world.", "Provide some interesting information about player " + targetPlayer.getName() + " to " + player.getName() + ".");
+
+        return getString(client, json);
+    }
+
+    private String getString(OkHttpClient client, JsonObject json) throws IOException {
         RequestBody body = RequestBody.create(json.toString(), MediaType.get("application/json; charset=utf-8"));
         Request request = new Request.Builder()
                 .url(OPENAI_API_URL)
@@ -50,7 +77,7 @@ public class OpenAIClient {
                 .build();
 
         try (Response response = client.newCall(request).execute()) {
-            if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
+            if (!response.isSuccessful()) throw new IOException("Unexpected code: " + response);
 
             assert response.body() != null;
             JsonObject responseBody = gson.fromJson(response.body().string(), JsonObject.class);
@@ -64,11 +91,22 @@ public class OpenAIClient {
         return null;
     }
 
-    public String extractCommand(String response) {
-        String[] parts = response.split("```");
-        if (parts.length >= 2) {
-            return parts[1].trim(); // The command should be between the ```
-        }
-        return null;
+    private static JsonObject getJsonObject(String systemContent, String userContent) {
+        JsonObject json = new JsonObject();
+        json.addProperty("model", "gpt-3.5-turbo-0125");
+        JsonArray messages = new JsonArray();
+
+        JsonObject systemMessage = new JsonObject();
+        systemMessage.addProperty("role", "system");
+        systemMessage.addProperty("content", systemContent);
+        messages.add(systemMessage);
+
+        JsonObject userMessage = new JsonObject();
+        userMessage.addProperty("role", "user");
+        userMessage.addProperty("content", userContent);
+        messages.add(userMessage);
+
+        json.add("messages", messages);
+        return json;
     }
 }
