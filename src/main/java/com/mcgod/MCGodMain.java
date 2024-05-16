@@ -28,8 +28,9 @@ public class MCGodMain extends JavaPlugin {
     private Location holySiteLocation;
     private Random random;
     private String apiKey;
+    private String gptModel;
     private int intervalTaskId;
-    private double baseChance = 0.25; // Base chance of wishes
+    private double baseChance;
     private boolean isHolySiteValid;
 
     @Override
@@ -41,6 +42,10 @@ public class MCGodMain extends JavaPlugin {
         String worldName = config.getString("holy-site.world");
         double x = config.getDouble("holy-site.x", 0);
         double z = config.getDouble("holy-site.z", 0);
+        int actionInterval = config.getInt("action-interval", 3600); // Default to 3 minutes (3600 ticks, 20 per second) if not set
+        apiKey = config.getString("openai.apiKey");
+        gptModel = config.getString("openai.model", "gpt-3.5-turbo");
+        baseChance = config.getDouble("base-chance", 0.25);
 
         if (worldName != null && Bukkit.getWorld(worldName) != null) {
             World world = Bukkit.getWorld(worldName);
@@ -65,8 +70,6 @@ public class MCGodMain extends JavaPlugin {
             isHolySiteValid = false;
         }
 
-        int actionInterval = config.getInt("action-interval", 3600); // Default to 3 minutes (3600 ticks, 20 per second) if not set
-        apiKey = config.getString("openai.apiKey");
         if (apiKey == null || apiKey.isEmpty()) {
             getLogger().severe("OpenAI API key not found in config.yml!");
         }
@@ -80,7 +83,7 @@ public class MCGodMain extends JavaPlugin {
         intervalTaskId = Bukkit.getScheduler().scheduleSyncRepeatingTask(this, () -> {
             performRandomAction();
             playersSacrificed.clear(); // Reset the sacrifice tracker for the new cycle
-            baseChance = 0.25; // Reset the base chance
+            baseChance = config.getDouble("base-chance", 0.25); // Reset the base chance
         }, actionInterval, actionInterval);
 
         getLogger().info("MCGod plugin successfully enabled!");
@@ -136,11 +139,13 @@ public class MCGodMain extends JavaPlugin {
                         @Override
                         public void run() {
                             String response = getAdviceFromChatGPT(message);
-                            if (response != null) {
-                                player.sendMessage("ChatGPT's advice: " + response);
-                            } else {
-                                player.sendMessage("Failed to get advice from ChatGPT.");
-                            }
+                            Bukkit.getScheduler().runTask(MCGodMain.this, () -> {
+                                if (response != null) {
+                                    player.sendMessage("§aChatGPT§r's advice: " + response);
+                                } else {
+                                    player.sendMessage("Failed to get advice from §aChatGPT§r.");
+                                }
+                            });
                         }
                     }.runTaskAsynchronously(this);
                 } else {
@@ -152,21 +157,23 @@ public class MCGodMain extends JavaPlugin {
                     String targetPlayerName = args[0];
                     Player targetPlayer = Bukkit.getPlayer(targetPlayerName);
                     if (targetPlayer != null) {
-                        double spyChance = 0.5;
+                        double spyChance = 0.5; // 50% chance to get information
                         if (random.nextDouble() < spyChance) {
                             new BukkitRunnable() {
                                 @Override
                                 public void run() {
                                     String info = getSpyInfoFromChatGPT(player, targetPlayer);
-                                    if (info != null) {
-                                        player.sendMessage("ChatGPT's info about " + targetPlayerName + ": " + info);
-                                    } else {
-                                        player.sendMessage("Failed to get info about " + targetPlayerName + " from ChatGPT.");
-                                    }
+                                    Bukkit.getScheduler().runTask(MCGodMain.this, () -> {
+                                        if (info != null) {
+                                            player.sendMessage("§aChatGPT§r's info about " + targetPlayerName + ": " + info);
+                                        } else {
+                                            player.sendMessage("Failed to get info about " + targetPlayerName + " from §aChatGPT§r.");
+                                        }
+                                    });
                                 }
                             }.runTaskAsynchronously(this);
                         } else {
-                            player.sendMessage("ChatGPT refuses to find any interesting information about " + targetPlayerName + ".");
+                            player.sendMessage("§aChatGPT§r couldn't find any interesting information about " + targetPlayerName + ".");
                         }
                     } else {
                         player.sendMessage("Player " + targetPlayerName + " not found.");
@@ -209,7 +216,7 @@ public class MCGodMain extends JavaPlugin {
         }
 
         try {
-            OpenAIClient openAIClient = new OpenAIClient(apiKey);
+            OpenAIClient openAIClient = new OpenAIClient(apiKey, gptModel);
             return openAIClient.getAdvice(message);
         } catch (Exception e) {
             getLogger().severe("Error getting advice from OpenAI: " + e.getMessage());
@@ -224,14 +231,13 @@ public class MCGodMain extends JavaPlugin {
         }
 
         try {
-            OpenAIClient openAIClient = new OpenAIClient(apiKey);
+            OpenAIClient openAIClient = new OpenAIClient(apiKey, gptModel);
             return openAIClient.getSpyInfo(player, targetPlayer);
         } catch (Exception e) {
             getLogger().severe("Error getting spy info from OpenAI: " + e.getMessage());
             return null;
         }
     }
-
 
     private void generateObelisk(Location location) {
         World world = location.getWorld();
@@ -256,12 +262,14 @@ public class MCGodMain extends JavaPlugin {
                         final String finalCommand = sanitizeCommand(command);
                         Bukkit.getScheduler().runTask(MCGodMain.this, () -> {
                             Bukkit.dispatchCommand(Bukkit.getConsoleSender(), finalCommand);
-                            Bukkit.broadcastMessage("ChatGPT is performing a random action: " + finalCommand);
+                            Bukkit.broadcastMessage("§aChatGPT§r is performing a random action: " + finalCommand);
                         });
                     } else {
                         String modification = getRandomModification();
-                        executeWorldModification(modification);
-                        Bukkit.broadcastMessage("ChatGPT is performing a random action: " + modification);
+                        Bukkit.getScheduler().runTask(MCGodMain.this, () -> {
+                            executeWorldModification(modification);
+                            Bukkit.broadcastMessage("§aChatGPT§r is performing a random action: " + modification);
+                        });
                     }
                 }
             }.runTaskAsynchronously(MCGodMain.this);
@@ -282,17 +290,19 @@ public class MCGodMain extends JavaPlugin {
                                 final String finalCommand = command;
                                 Bukkit.getScheduler().runTask(MCGodMain.this, () -> {
                                     Bukkit.dispatchCommand(Bukkit.getConsoleSender(), finalCommand);
-                                    player.sendMessage("ChatGPT has granted your wish: " + finalCommand);
+                                    player.sendMessage("§aChatGPT§r has granted your wish: " + finalCommand);
                                 });
                             } else {
                                 String modification = getRandomModification();
-                                executeWorldModification(modification);
-                                player.sendMessage("ChatGPT has granted a wish: " + modification);
+                                Bukkit.getScheduler().runTask(MCGodMain.this, () -> {
+                                    executeWorldModification(modification);
+                                    player.sendMessage("§aChatGPT§r has granted a wish: " + modification);
+                                });
                             }
                         }
                     }.runTaskAsynchronously(MCGodMain.this);
                 } else {
-                    player.sendMessage("ChatGPT has ignored your wish.");
+                    player.sendMessage("§aChatGPT§r has ignored your wish.");
                 }
             }
             playerWishes.clear(); // Clear wishes
@@ -322,7 +332,7 @@ public class MCGodMain extends JavaPlugin {
             default:
                 break;
         }
-        Bukkit.broadcastMessage("ChatGPT is performing an action: " + modification);
+        Bukkit.broadcastMessage("§aChatGPT§r is performing an action: " + modification);
     }
 
     private String generateCommandForWish(String wish) {
@@ -333,7 +343,7 @@ public class MCGodMain extends JavaPlugin {
 
         try {
             // Call OpenAI API to generate the command
-            OpenAIClient openAIClient = new OpenAIClient(apiKey);
+            OpenAIClient openAIClient = new OpenAIClient(apiKey, gptModel);
             Player[] players = getPlayers();
             return openAIClient.generateCommand(wish, players);
         } catch (Exception e) {
@@ -344,15 +354,14 @@ public class MCGodMain extends JavaPlugin {
 
     private String extractCommand(String response) {
         if (response != null) {
-            OpenAIClient openAIClient = new OpenAIClient(apiKey);
+            OpenAIClient openAIClient = new OpenAIClient(apiKey, gptModel);
             return openAIClient.extractCommand(response);
         }
         return null;
     }
 
     private String sanitizeCommand(String command) {
-        command = command.replaceAll("^(bash\\s+|/|java\\s+)+", ""); // Remove "bash ", "java ", or any leading slashes
+        command = command.replaceAll("^(bash\\s+|/|java\\s+|plaintext\\s+)+", ""); // Remove "bash ", "java ", "plaintext ", or any leading slashes
         return command;
     }
-
 }

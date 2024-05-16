@@ -11,10 +11,12 @@ import java.io.IOException;
 public class OpenAIClient {
     private static final String OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
     private final String apiKey;
+    private final String model;
     private final Gson gson;
 
-    public OpenAIClient(String apiKey) {
+    public OpenAIClient(String apiKey, String model) {
         this.apiKey = apiKey;
+        this.model = model;
         this.gson = new Gson();
     }
 
@@ -22,7 +24,7 @@ public class OpenAIClient {
         OkHttpClient client = new OkHttpClient();
 
         JsonObject json = new JsonObject();
-        json.addProperty("model", "gpt-3.5-turbo-0125");
+        json.addProperty("model", model);
         JsonArray messages = new JsonArray();
 
         JsonObject systemMessage = new JsonObject();
@@ -91,9 +93,9 @@ public class OpenAIClient {
         return null;
     }
 
-    private static JsonObject getJsonObject(String systemContent, String userContent) {
+    private JsonObject getJsonObject(String systemContent, String userContent) {
         JsonObject json = new JsonObject();
-        json.addProperty("model", "gpt-3.5-turbo-0125");
+        json.addProperty("model", model);
         JsonArray messages = new JsonArray();
 
         JsonObject systemMessage = new JsonObject();

@@ -4,5 +4,7 @@ holy-site:
   x: 0.0
   z: 0.0
 action-interval: 600
+base-chance: 0.25
 openai:
   apiKey: "your_openai_api_key_here"
+  model: "gpt-4o"
