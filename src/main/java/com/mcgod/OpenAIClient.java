@@ -29,7 +29,7 @@ public class OpenAIClient {
 
         JsonObject systemMessage = new JsonObject();
         systemMessage.addProperty("role", "system");
-        systemMessage.addProperty("content", "You are a Minecraft plugin that generates commands based on players' wishes. Make sure the commands are valid and executable in Minecraft.");
+        systemMessage.addProperty("content", "You are a Minecraft plugin that generates commands based on players' wishes. Make sure the commands are valid and executable in Minecraft. Be less benevolent to the players, add some challenges or tricky conditions.");
         messages.add(systemMessage);
 
         JsonObject userMessage = new JsonObject();
@@ -58,14 +58,42 @@ public class OpenAIClient {
     public String getAdvice(String message) throws IOException {
         OkHttpClient client = new OkHttpClient();
 
-        JsonObject json = getJsonObject("You are a helpful assistant.", message);
+        JsonObject json = new JsonObject();
+        json.addProperty("model", model);
+        JsonArray messages = new JsonArray();
+
+        JsonObject systemMessage = new JsonObject();
+        systemMessage.addProperty("role", "system");
+        systemMessage.addProperty("content", "You are a helpful assistant that provides advice to players in a Minecraft world. However, be less benevolent and add some challenges or tricky conditions.");
+        messages.add(systemMessage);
+
+        JsonObject userMessage = new JsonObject();
+        userMessage.addProperty("role", "user");
+        userMessage.addProperty("content", message);
+        messages.add(userMessage);
+
+        json.add("messages", messages);
 
         return getString(client, json);
     }
 
     public String getSpyInfo(Player player, Player targetPlayer) throws IOException {
         OkHttpClient client = new OkHttpClient();
-        JsonObject json = getJsonObject("You are a helpful assistant that provides information about players in a Minecraft world.", "Provide some interesting information about player " + targetPlayer.getName() + " to " + player.getName() + ".");
+        JsonObject json = new JsonObject();
+        json.addProperty("model", model);
+        JsonArray messages = new JsonArray();
+
+        JsonObject systemMessage = new JsonObject();
+        systemMessage.addProperty("role", "system");
+        systemMessage.addProperty("content", "You are a helpful assistant that provides information about players in a Minecraft world. Be less benevolent and add some challenges or tricky conditions.");
+        messages.add(systemMessage);
+
+        JsonObject userMessage = new JsonObject();
+        userMessage.addProperty("role", "user");
+        userMessage.addProperty("content", "Provide some interesting information about player " + targetPlayer.getName() + " to " + player.getName() + ".");
+        messages.add(userMessage);
+
+        json.add("messages", messages);
 
         return getString(client, json);
     }
@@ -91,24 +119,5 @@ public class OpenAIClient {
             }
         }
         return null;
-    }
-
-    private JsonObject getJsonObject(String systemContent, String userContent) {
-        JsonObject json = new JsonObject();
-        json.addProperty("model", model);
-        JsonArray messages = new JsonArray();
-
-        JsonObject systemMessage = new JsonObject();
-        systemMessage.addProperty("role", "system");
-        systemMessage.addProperty("content", systemContent);
-        messages.add(systemMessage);
-
-        JsonObject userMessage = new JsonObject();
-        userMessage.addProperty("role", "user");
-        userMessage.addProperty("content", userContent);
-        messages.add(userMessage);
-
-        json.add("messages", messages);
-        return json;
     }
 }

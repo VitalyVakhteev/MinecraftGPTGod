@@ -16,7 +16,9 @@ commands:
   sacrifice:
     description: Sacrifice an item to ChatGPT when near a holy site
     usage: /<command>
-#  startapi:
-#    description: Start the ChatGPT API server
-#  stopapi:
-#    description: Stop the ChatGPT API server
+  start:
+    description: Start the ChatGPT plugin
+    usage: /<command>
+  stop:
+    description: Stop the ChatGPT plugin
+    usage: /<command>
