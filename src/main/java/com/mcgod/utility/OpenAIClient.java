@@ -1,10 +1,10 @@
-package com.mcgod;
+package com.mcgod.utility;
 
-import org.bukkit.entity.Player;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import okhttp3.*;
+import org.bukkit.entity.Player;
 
 import java.io.IOException;
 
@@ -48,7 +48,7 @@ public class OpenAIClient {
     public String extractCommand(String response) {
         String[] parts = response.split("```");
         if (parts.length >= 2) {
-            return parts[1].trim(); // The command should be between the ```
+            return parts[1].trim();
         }
         return null;
     }
@@ -66,6 +66,88 @@ public class OpenAIClient {
         JsonObject json = getJsonObject("You are a helpful assistant that provides information about players in a Minecraft world.", "Provide some interesting information about player " + targetPlayer.getName() + " to " + player.getName() + ".");
 
         return getString(client, json);
+    }
+
+    public String getQuestText(String playerName, String npcName) throws IOException {
+        OkHttpClient client = new OkHttpClient();
+
+        JsonObject json = new JsonObject();
+        json.addProperty("model", "gpt-3.5-turbo-0125");
+        JsonArray messages = new JsonArray();
+
+        JsonObject systemMessage = new JsonObject();
+        systemMessage.addProperty("role", "system");
+        systemMessage.addProperty("content", "You are a helpful assistant that creates quests for players in Minecraft.");
+        messages.add(systemMessage);
+
+        JsonObject userMessage = new JsonObject();
+        userMessage.addProperty("role", "user");
+        userMessage.addProperty("content", "Generate a quest for player " + playerName + " with NPC " + npcName + ". The quest should involve bringing an item.");
+        messages.add(userMessage);
+
+        json.add("messages", messages);
+
+        RequestBody body = RequestBody.create(json.toString(), MediaType.get("application/json; charset=utf-8"));
+        Request request = new Request.Builder()
+                .url(OPENAI_API_URL)
+                .addHeader("Authorization", "Bearer " + apiKey)
+                .post(body)
+                .build();
+
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) throw new IOException("Unexpected code: " + response);
+
+            assert response.body() != null;
+            JsonObject responseBody = gson.fromJson(response.body().string(), JsonObject.class);
+            JsonArray choices = responseBody.getAsJsonArray("choices");
+            if (!choices.isEmpty()) {
+                JsonObject firstChoice = choices.get(0).getAsJsonObject();
+                JsonObject messageContent = firstChoice.getAsJsonObject("message");
+                return messageContent.get("content").getAsString().trim();
+            }
+        }
+        return null;
+    }
+
+    public String generateNpcName(String playerName) throws IOException {
+        OkHttpClient client = new OkHttpClient();
+
+        JsonObject json = new JsonObject();
+        json.addProperty("model", "gpt-3.5-turbo-0125");
+        JsonArray messages = new JsonArray();
+
+        JsonObject systemMessage = new JsonObject();
+        systemMessage.addProperty("role", "system");
+        systemMessage.addProperty("content", "You are a helpful assistant that generates names for NPCs in a Minecraft quest.");
+        messages.add(systemMessage);
+
+        JsonObject userMessage = new JsonObject();
+        userMessage.addProperty("role", "user");
+        userMessage.addProperty("content", "Generate a creative name for an NPC that will give a quest to player " + playerName + ".");
+        messages.add(userMessage);
+
+        json.add("messages", messages);
+
+        RequestBody body = RequestBody.create(json.toString(), MediaType.get("application/json; charset=utf-8"));
+        Request request = new Request.Builder()
+                .url(OPENAI_API_URL)
+                .addHeader("Authorization", "Bearer " + apiKey)
+                .post(body)
+                .build();
+
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) throw new IOException("Unexpected code: " + response);
+
+            assert response.body() != null;
+            JsonObject responseBody = gson.fromJson(response.body().string(), JsonObject.class);
+            JsonArray choices = responseBody.getAsJsonArray("choices");
+            if (!choices.isEmpty()) {
+                JsonObject firstChoice = choices.get(0).getAsJsonObject();
+                JsonObject messageContent = firstChoice.getAsJsonObject("message");
+                return messageContent.get("content").getAsString().trim();
+            }
+        }
+        return null;
     }
 
     private String getString(OkHttpClient client, JsonObject json) throws IOException {

@@ -1,4 +1,4 @@
-package com.mcgod;
+package com.mcgod.utility;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
