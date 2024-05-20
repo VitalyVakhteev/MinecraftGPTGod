@@ -29,7 +29,7 @@ public class OpenAIClient {
 
         JsonObject systemMessage = new JsonObject();
         systemMessage.addProperty("role", "system");
-        systemMessage.addProperty("content", "You are a Minecraft plugin that generates commands based on players' wishes. Make sure the commands are valid and executable in Minecraft. Be less benevolent to the players, add some challenges or tricky conditions.");
+        systemMessage.addProperty("content", "You are a Minecraft plugin that generates commands based on players' wishes. Make sure the commands are valid and executable in Minecraft 1.20 (fall back to the latest version if this is outside your knowledge cutoff). Be less benevolent to the players, add some challenges or tricky conditions.");
         messages.add(systemMessage);
 
         JsonObject userMessage = new JsonObject();
