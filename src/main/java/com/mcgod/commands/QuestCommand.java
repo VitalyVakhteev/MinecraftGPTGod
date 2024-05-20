@@ -15,6 +15,7 @@ import org.jetbrains.annotations.NotNull;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Random;
 
 public class QuestCommand implements CommandExecutor {
@@ -60,7 +61,7 @@ public class QuestCommand implements CommandExecutor {
                     return;
                 }
                 Location location = player.getLocation();
-                String questDescription = null;
+                String questDescription;
                 String questItem = "diamond";
 
                 try {
@@ -73,10 +74,9 @@ public class QuestCommand implements CommandExecutor {
                 if (questDescription != null) {
                     playerQuests.put(player, new QuestData(npcName, questDescription, questItem, location));
                     String summonCommand = "summon villager " + location.getBlockX() + " " + location.getBlockY() + " " + location.getBlockZ() + " {CustomName:'{\"text\":\"" + npcName + "\"}'}";
-                    String finalQuestDescription = questDescription;
                     Bukkit.getScheduler().runTask(MCGodMain.getPlugin(MCGodMain.class), () -> {
                         Bukkit.dispatchCommand(Bukkit.getConsoleSender(), summonCommand);
-                        player.sendMessage(finalQuestDescription);
+                        player.sendMessage(questDescription);
                     });
                 } else {
                     player.sendMessage("Failed to start the quest.");
@@ -103,7 +103,7 @@ public class QuestCommand implements CommandExecutor {
                 if (itemInHand == Material.matchMaterial(questData.getQuestItem())) {
                     playerQuests.remove(player);
                     String reward = getRandomReward();
-                    player.getInventory().addItem(new org.bukkit.inventory.ItemStack(Material.matchMaterial(reward), 1));
+                    player.getInventory().addItem(new org.bukkit.inventory.ItemStack(Objects.requireNonNull(Material.matchMaterial(reward)), 1));
                     player.sendMessage("Quest completed! You have received: " + reward);
                 } else {
                     player.sendMessage("You don't have the required item to complete the quest.");
