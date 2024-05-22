@@ -4,9 +4,11 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import okhttp3.*;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 
 import java.io.IOException;
+import java.util.Random;
 
 public class OpenAIClient {
     private static final String OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
@@ -68,7 +70,7 @@ public class OpenAIClient {
         return getString(client, json);
     }
 
-    public String getQuestText(String playerName, String npcName) throws IOException {
+    public String getQuestText(String playerName, String npcName, String questItem) throws IOException {
         OkHttpClient client = new OkHttpClient();
 
         JsonObject json = new JsonObject();
@@ -82,7 +84,7 @@ public class OpenAIClient {
 
         JsonObject userMessage = new JsonObject();
         userMessage.addProperty("role", "user");
-        userMessage.addProperty("content", "Generate a quest for player " + playerName + " with NPC " + npcName + ". The quest should involve bringing an item.");
+        userMessage.addProperty("content", "Generate a quest for player " + playerName + " with NPC " + npcName + ". The quest should involve bringing a " + questItem + ".");
         messages.add(userMessage);
 
         json.add("messages", messages);
@@ -190,5 +192,11 @@ public class OpenAIClient {
 
         json.add("messages", messages);
         return json;
+    }
+
+    public String getValidQuestItem() {
+        String[] items = {"DIAMOND", "GOLD_INGOT", "EMERALD", "IRON_INGOT"};
+        Random random = new Random();
+        return items[random.nextInt(items.length)];
     }
 }

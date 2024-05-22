@@ -39,18 +39,18 @@ public class SpyCommand implements CommandExecutor {
                                 try {
                                     info = openAIClient.getSpyInfo(player, targetPlayer);
                                 } catch (IOException e) {
-                                    getLogger().info("Failed to get info about " + targetPlayerName + " from ChatGPT.");
+                                    getLogger().info("Failed to get info about " + targetPlayerName + " from §aChatGPT.");
                                     throw new RuntimeException(e);
                                 }
                                 if (info != null) {
-                                    player.sendMessage("ChatGPT's info about " + targetPlayerName + ": " + info);
+                                    player.sendMessage("§aChatGPT's info about " + targetPlayerName + ": " + info);
                                 } else {
-                                    player.sendMessage("Failed to get info about " + targetPlayerName + " from ChatGPT.");
+                                    player.sendMessage("Failed to get info about " + targetPlayerName + " from §aChatGPT.");
                                 }
                             }
                         }.runTaskAsynchronously(MCGodMain.getPlugin(MCGodMain.class));
                     } else {
-                        player.sendMessage("ChatGPT refuses to find any interesting information about " + targetPlayerName + ".");
+                        player.sendMessage("§aChatGPT refuses to find any interesting information about " + targetPlayerName + ".");
                     }
                 } else {
                     player.sendMessage("Player " + targetPlayerName + " not found.");

@@ -8,7 +8,7 @@
     <version>1.0.2</version>
     <packaging>jar</packaging>
 
-    <name>com.mcgod.MCGodMain</name>
+    <name>MCGod</name>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

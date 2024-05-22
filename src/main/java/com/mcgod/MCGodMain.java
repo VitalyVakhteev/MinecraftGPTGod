@@ -1,6 +1,7 @@
 package com.mcgod;
 
 import com.mcgod.commands.*;
+import com.mcgod.utility.FileStorageUtil;
 import com.mcgod.utility.ObeliskManager;
 import com.mcgod.utility.WishManager;
 import org.bukkit.Bukkit;
@@ -43,13 +44,14 @@ public class MCGodMain extends JavaPlugin {
 
         wishManager = new WishManager(this, apiKey, playerWishes, playerChances, baseChance, playersSacrificed, isHolySiteValid, obeliskManager);
 
+        QuestCommand questCommand = new QuestCommand(apiKey);
         Objects.requireNonNull(getCommand("pray")).setExecutor(new PrayCommand(wishManager));
         Objects.requireNonNull(getCommand("sacrifice")).setExecutor(new SacrificeCommand(wishManager));
         Objects.requireNonNull(getCommand("advice")).setExecutor(new AdviceCommand(apiKey));
         Objects.requireNonNull(getCommand("spy")).setExecutor(new SpyCommand(apiKey));
-        Objects.requireNonNull(getCommand("start_quest")).setExecutor(new QuestCommand(apiKey));
-        Objects.requireNonNull(getCommand("quest_reminder")).setExecutor(new QuestCommand(apiKey));
-        Objects.requireNonNull(getCommand("end_quest")).setExecutor(new QuestCommand(apiKey));
+        Objects.requireNonNull(getCommand("start_quest")).setExecutor(questCommand);
+        Objects.requireNonNull(getCommand("quest_reminder")).setExecutor(questCommand);
+        Objects.requireNonNull(getCommand("end_quest")).setExecutor(questCommand);
         Objects.requireNonNull(getCommand("start")).setExecutor(new StartCommand(this));
         Objects.requireNonNull(getCommand("stop")).setExecutor(new StopCommand(this));
 
@@ -61,6 +63,7 @@ public class MCGodMain extends JavaPlugin {
     @Override
     public void onDisable() {
         deactivatePlugin();
+        FileStorageUtil.saveQuests(FileStorageUtil.loadQuests());
         getLogger().info("MCGod plugin disabled!");
     }
 

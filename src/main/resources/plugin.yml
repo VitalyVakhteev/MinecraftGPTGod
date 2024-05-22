@@ -1,9 +1,10 @@
-name: com.mcgod.MCGodMain
+name: MCGod
 version: 1.0.2
-api-version: "1.13"
+api-version: "1.20.6"
 main: com.mcgod.MCGodMain
 description: A fun Java plugin that adds ChatGPT as a god that can modify a server's Minecraft World.
 commands:
+  
   pray:
     description: Pray to ChatGPT for help
     usage: /<command> <message>

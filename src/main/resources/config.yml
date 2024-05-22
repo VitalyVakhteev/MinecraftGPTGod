@@ -4,5 +4,7 @@ holy-site:
   x: 0.0
   z: 0.0
 action-interval: 600
+base-chance: 0.3
 openai:
   apiKey: "your_openai_api_key_here"
+  model: "gpt-3.5-turbo"

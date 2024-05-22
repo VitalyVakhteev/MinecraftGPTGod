@@ -10,6 +10,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static com.mcgod.utility.DefaultEvents.*;
 
@@ -27,8 +28,8 @@ public class WishManager {
     public WishManager(JavaPlugin plugin, String apiKey, Map<Player, String> playerWishes, Map<Player, Double> playerChances, double baseChance, Set<Player> playersSacrificed, boolean isHolySiteValid, ObeliskManager obeliskManager) {
         this.plugin = plugin;
         this.apiKey = apiKey;
-        this.playerWishes = playerWishes;
-        this.playerChances = playerChances;
+        this.playerWishes = new ConcurrentHashMap<>(playerWishes);
+        this.playerChances = new ConcurrentHashMap<>(playerChances);
         this.baseChance = baseChance;
         this.playersSacrificed = playersSacrificed;
         this.isHolySiteValid = isHolySiteValid;
@@ -51,7 +52,11 @@ public class WishManager {
             return;
         }
         Location holySiteLocation = obeliskManager.getHolySiteLocation();
-        if (player.getLocation().distance(holySiteLocation) < 10) {
+        if (holySiteLocation == null) {
+            player.sendMessage("Holy site location is not set.");
+            return;
+        }
+        if (isPlayerAtHolySite(player.getLocation(), holySiteLocation)) {
             if (player.getInventory().getItemInMainHand().getType() != Material.AIR) {
                 player.getInventory().setItemInMainHand(null);
                 double newChance = baseChance + (Math.random() * 0.5);
@@ -66,6 +71,11 @@ public class WishManager {
         }
     }
 
+    private boolean isPlayerAtHolySite(Location playerLocation, Location holySiteLocation) {
+        double distance = playerLocation.distance(holySiteLocation);
+        return distance <= 5;
+    }
+
     public void performRandomAction() {
         if (playerWishes.isEmpty()) {
             new BukkitRunnable() {
@@ -78,12 +88,12 @@ public class WishManager {
                         final String finalCommand = sanitizeCommand(command);
                         Bukkit.getScheduler().runTask(plugin, () -> {
                             Bukkit.dispatchCommand(Bukkit.getConsoleSender(), finalCommand);
-                            Bukkit.broadcastMessage("ChatGPT is performing a random action: " + finalCommand);
+                            Bukkit.broadcastMessage("§aChatGPT is performing a random action: " + finalCommand);
                         });
                     } else {
                         String modification = getRandomModification();
                         executeWorldModification(modification);
-                        Bukkit.broadcastMessage("ChatGPT is performing a random action: " + modification);
+                        Bukkit.broadcastMessage("§aChatGPT is performing a random action: " + modification);
                     }
                 }
             }.runTaskAsynchronously(plugin);
@@ -103,20 +113,21 @@ public class WishManager {
                                 final String finalCommand = command;
                                 Bukkit.getScheduler().runTask(plugin, () -> {
                                     Bukkit.dispatchCommand(Bukkit.getConsoleSender(), finalCommand);
-                                    player.sendMessage("ChatGPT has granted your wish: " + finalCommand);
+                                    player.sendMessage("§aChatGPT has granted your wish: " + finalCommand);
                                 });
                             } else {
                                 String modification = getRandomModification();
                                 executeWorldModification(modification);
-                                player.sendMessage("ChatGPT has granted a wish: " + modification);
+                                player.sendMessage("§aChatGPT has granted a wish: " + modification);
                             }
                         }
                     }.runTaskAsynchronously(plugin);
                 } else {
-                    player.sendMessage("ChatGPT has ignored your wish.");
+                    player.sendMessage("§aChatGPT has ignored your wish.");
                 }
             }
             playerWishes.clear();
+            playersSacrificed.clear(); // Clear the sacrifices for the next cycle
         }
     }
 
@@ -172,7 +183,7 @@ public class WishManager {
             default:
                 break;
         }
-        Bukkit.broadcastMessage("ChatGPT is performing an action: " + modification);
+        Bukkit.broadcastMessage("§aChatGPT is performing an action: " + modification);
     }
 
     private String getRandomModification() {

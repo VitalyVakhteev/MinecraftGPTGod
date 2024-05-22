@@ -35,9 +35,9 @@ public class AdviceCommand implements CommandExecutor {
                             throw new RuntimeException(e);
                         }
                         if (response != null) {
-                            player.sendMessage("ChatGPT's advice: " + response);
+                            player.sendMessage("§aChatGPT's advice: " + response);
                         } else {
-                            player.sendMessage("Failed to get advice from ChatGPT.");
+                            player.sendMessage("Failed to get advice from §aChatGPT.");
                         }
                     }
                 }.runTaskAsynchronously(MCGodMain.getPlugin(MCGodMain.class));
