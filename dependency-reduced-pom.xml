@@ -3,8 +3,8 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.mcgod</groupId>
   <artifactId>MCGodMain</artifactId>
-  <name>com.mcgod.MCGodMain</name>
-  <version>1.0.1</version>
+  <name>MCGod</name>
+  <version>1.0.2</version>
   <build>
     <plugins>
       <plugin>
